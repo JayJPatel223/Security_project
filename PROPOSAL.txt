@@ -1,0 +1,97 @@
+Security and Performance Evaluation of AES-GCM an
+ChaCha20-Poly1305 with a Custom Experimental Cipher
+By: Jay Patel & Sami Darouiche
+1. Title and Problem
+Encryption is an important part of computer security, but using a strong encryption algorithm
+does not automatically guarantee a secure system. Security can be weakened by poor
+implementation, incorrect use of encryption modes, nonce reuse, weak keys, or poorly designed
+custom algorithms.
+
+This project will investigate and compare two widely used authenticated-encryption algorithms:
+AES-GCM and ChaCha20-Poly1305. A small custom experimental cipher will also be
+developed for educational purposes and tested against basic attacks. The custom cipher will not
+be intended for real-world use. It will instead demonstrate why designing secure cryptographic
+algorithms is difficult.
+
+The project is important because AES-GCM and ChaCha20-Poly1305 are commonly used in
+modern security systems, while mistakes such as nonce reuse or the use of insecure modes such
+as ECB can make otherwise strong encryption vulnerable.
+
+2. Objective and Approach
+The main objective is to compare AES-GCM and ChaCha20-Poly1305 in terms of security,
+performance, and resistance to common misuse, while demonstrating the weaknesses of a
+simple custom cipher.
+
+The project will:
+
+      Implement AES-128-GCM, AES-256-GCM, and ChaCha20-Poly1305.
+      Design and implement a small experimental cipher with a deliberately small keyspace.
+      Measure encryption and decryption performance using different data sizes.
+      Perform a brute-force attack against the custom cipher.
+      Demonstrate AES-ECB's repeated-block information leakage.
+      Modify encrypted data to test whether authentication detects tampering.
+      Demonstrate the security consequences of nonce reuse.
+      Examine basic diffusion and output characteristics.
+
+Performance will be evaluated using encryption/decryption time, throughput, and memory usage
+where practical. Security experiments will be evaluated based on whether attacks or
+vulnerabilities can be successfully demonstrated.
+
+3. Tools and Resources
+The project will primarily use Python with the following tools:
+
+      Python 3
+      cryptography for AES-GCM and ChaCha20-Poly1305
+      NumPy for data and bit manipulation
+      pandas for organizing results
+      Matplotlib for graphs
+      time.perf_counter_ns() for timing
+      pytest for testing
+
+Synthetic test data will be generated so that file size and repeated patterns can be controlled. No
+real confidential information will be used.
+
+All experiments will be performed locally in a controlled environment. The operating system,
+CPU, Python version, cryptographic library version, test sizes, and number of repetitions will be
+recorded to improve reproducibility.
+
+4. Expected Outcomes and Timeline
+The project is expected to demonstrate that AES-GCM and ChaCha20-Poly1305 can provide
+strong authenticated encryption when implemented and used correctly, while their performance
+can vary depending on the hardware and software environment.
+
+The project should also demonstrate that:
+
+      AES-ECB can reveal patterns in encrypted data.
+      Authentication can detect unauthorized ciphertext modification.
+      Reusing a nonce can seriously weaken authenticated encryption.
+      A small custom cipher can be vulnerable to brute-force attacks and other basic analysis.
+      Designing a secure encryption algorithm is significantly more difficult than simply
+       producing ciphertext that appears random.
+
+Timeline
+
+Week 1: Research AES-GCM, ChaCha20-Poly1305, AEAD, nonce security, and common
+attacks.
+
+Week 2: Implement the standard algorithms and create the benchmarking framework.
+
+Week 3: Design and implement the custom experimental cipher.
+
+Week 4: Perform the security experiments, including brute force, ECB leakage, tampering, and
+nonce reuse.
+
+Week 5: Run performance tests, analyze results, and create graphs.
+
+Week 6: Complete the analysis and final report.
+
+5. References
+   1. National Institute of Standards and Technology. Advanced Encryption Standard (AES),
+      FIPS PUB 197-upd1, 2023.
+   2. Dworkin, M. Recommendation for Block Cipher Modes of Operation: Galois/Counter
+      Mode (GCM) and GMAC, NIST SP 800-38D, 2007.
+   3. Nir, Y., & Langley, A. ChaCha20 and Poly1305 for IETF Protocols, RFC 8439, 2018.
+   4. Dworkin, M. Recommendation for Block Cipher Modes of Operation: Methods and
+      Techniques, NIST SP 800-38A, 2001.
+   5. Webster, A. F., & Tavares, S. E. “On the Design of S-Boxes,” Advances in Cryptology —
+      CRYPTO '85, 1985.

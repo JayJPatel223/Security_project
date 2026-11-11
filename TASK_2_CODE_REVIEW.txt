@@ -1,0 +1,35 @@
+Task 2 — Prototype code and experimental design review
+
+Scope: crypto_model.py, tests/test_model.py, requirements.txt, and README.md in the attached prototype. The complete analysis scripts and full result sets are absent. Findings are from static review. The test command could not start because pytest is unavailable in the workspace runtime. The prototype test file defines 19 pytest cases after parameter expansion. The complete project's stated 22 passing tests remain unverified here.
+
+1. Mixed results after an interrupted rerun (correctness, crypto_model.py:196–229).
+The CLI accepts an existing output directory and writes files in stages. A failed rerun can leave newer environment or timing files beside older summaries, memory results, or plots. Use a new directory per run or stage a run separately and publish the directory only when complete. Have any future aggregator reject incomplete runs and incompatible settings.
+
+2. Duplicate sizes silently pool samples (correctness, lines 145–161 and 190–217).
+The CLI accepts a repeated size. Each pass starts repetition IDs over, then the summary groups only by algorithm and size. The resulting sample count no longer matches the repetition count advertised for that size. Reject duplicate sizes before generating output.
+
+3. Fixed order and paired, reused buffers (benchmark design, lines 140–162).
+Every run visits algorithms and sizes in a fixed order. Each size reuses a plaintext buffer, and decryption immediately follows encryption on the freshly generated ciphertext. Load, temperature, CPU frequency, and buffer reuse can influence the comparison. Use a documented balanced or seeded order across runs. Describe the existing workload as a warm, in-process paired benchmark. For standalone decryption measurements, precompute valid ciphertexts and time them in a separate phase under a documented buffer policy.
+
+4. Small-message timings include per-call and measurement overhead (benchmark design, lines 151–156).
+The timed region includes the Python call and returned output. At small sizes, elapsed time per call matters alongside throughput. Keep the existing API-level metric, report raw latency and spread, and optionally time batches of operations with precomputed inputs and nonces to reduce the clock overhead per operation. Label plot repetitions as operations within a run so they are distinguishable from independent runs.
+
+5. Toy throughput is a different workload (comparability, lines 32–42 and 140–162).
+The toy cipher uses a Python byte loop and does not perform the authentication work included in the library calls. Present it separately or label it clearly as an educational baseline. The benchmark cannot isolate how much of the speed gap comes from implementation versus workload.
+
+6. One traced peak per case (measurement limits, lines 165–185).
+Inputs and cipher setup are outside the traced interval. Each operation is sampled once. Repeat the allocation measurement, summarize its spread, and describe it as per-call traced Python allocations. A separately designed process-memory measurement would answer a different question.
+
+7. Environment capture has portability and provenance gaps (reproducibility, lines 197–207 and requirements.txt).
+The prototype does not explicitly record available CPU count, affinity, or instruction flags, and the dependency requirements are lower bounds. Record the actual runtime versions and hardware metadata on the benchmark machine. Keep an exact dependency snapshot for reproducing the run. Attribute any observed acceleration to a verified backend configuration or controlled experiment before making a causal claim.
+
+8. Tampering shares its fixture with intentional nonce reuse (experimental design, lines 71–90).
+The same disposable key and ciphertext fixture are used for the tampering cases and deliberate nonce reuse. Give each demonstration its own fixture so that the tampering result clearly comes from an ordinary single-encryption setup. Preserve the existing wrong-key unit test and distinguish that test from the recorded experiment results.
+
+9. Diffusion samples only the lowest bit of each selected byte (experimental design, lines 57–60 and 117–136).
+The byte position rotates, but flip() always toggles the same bit within the byte. Specify the sampled positions or sample across all bit positions and record them. Keep body and tag observations separate and interpret them as properties of the tested full constructions under this fixed-input comparison.
+
+10. The toy search time describes the chosen exhaustive loop (interpretation, lines 96–111).
+The loop tests the full keyspace with a fixed target and a full known message. Report its runtime as the cost of that demonstration. The experiment does not measure the best recovery method or establish a minimum recovery time. The report already notes a simpler recovery route.
+
+No source, input archive, benchmark numbers, or draft report were edited. The additional code review of extra_experiments.py and analyze_runs.py requires the complete archive.

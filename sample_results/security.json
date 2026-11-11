@@ -1,0 +1,40 @@
+{
+  "AES-128-GCM": {
+    "round_trip": true,
+    "ciphertext_tampering_rejected": true,
+    "tag_tampering_rejected": true,
+    "wrong_aad_rejected": true,
+    "wrong_nonce_rejected": true,
+    "nonce_reuse_known_plaintext_recovers_second_message": true
+  },
+  "AES-256-GCM": {
+    "round_trip": true,
+    "ciphertext_tampering_rejected": true,
+    "tag_tampering_rejected": true,
+    "wrong_aad_rejected": true,
+    "wrong_nonce_rejected": true,
+    "nonce_reuse_known_plaintext_recovers_second_message": true
+  },
+  "ChaCha20-Poly1305": {
+    "round_trip": true,
+    "ciphertext_tampering_rejected": true,
+    "tag_tampering_rejected": true,
+    "wrong_aad_rejected": true,
+    "wrong_nonce_rejected": true,
+    "nonce_reuse_known_plaintext_recovers_second_message": true
+  },
+  "AES-ECB": {
+    "identical_ciphertext_blocks": true
+  },
+  "Toy-XOR-16": {
+    "keyspace": 65536,
+    "keys_tested": 65536,
+    "recovered_keys": [
+      45000
+    ],
+    "actual_key": 45000,
+    "unique_correct_key_recovered": true,
+    "search_ms": 247.896317,
+    "tampering_accepted": true
+  }
+}

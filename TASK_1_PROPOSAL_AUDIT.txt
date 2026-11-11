@@ -1,0 +1,28 @@
+Task 1 — Proposal coverage audit
+
+“Covered” means the draft addresses the requirement. “Partial” means part of the requirement is missing or the available evidence is incomplete. This is a document comparison. Source verification and code review are later tasks.
+
+1. Title, authors, and problem — Covered. The title and author line identify Jay Patel and Sami Darouiche. Section 1 frames the comparison around performance, misuse, and the limits of a deliberately weak teaching cipher.
+2. Implement AES-128-GCM, AES-256-GCM, and ChaCha20-Poly1305 — Covered. Section 3 names all three configurations and the cryptography classes used.
+3. Design and implement a small educational cipher with a deliberately small keyspace — Covered. Section 3 explains Toy-XOR-16, its repeating key, and its educational purpose. Sections 3 and 6 identify the pure-Python comparison limit.
+4. Benchmark encryption and decryption across different input sizes — Covered in the draft. Sections 2 and 4 specify the sizes, repetitions, and both operations.
+5. Report encryption and decryption time — Partial. Section 2 describes timing, and Section 4 gives throughput and run-to-run ratios. Section 4 does not directly report elapsed encryption or decryption times for the benchmark configurations.
+6. Report throughput — Covered in the draft. Section 4 gives separate encryption and decryption tables and a run-to-run variation table. The complete results needed to verify the aggregates were not supplied.
+7. Measure memory where practical — Covered with a stated limitation. Section 4 reports sampled Python allocation peaks for both operations at the smallest and largest sizes. Total process memory remains unmeasured in the draft.
+8. Perform brute force against the custom cipher — Covered in the draft. Section 5 reports whether the search recovered the key and gives the observed time range. The full run evidence for that range was not supplied.
+9. Demonstrate repeated-block leakage with AES-ECB — Covered. Section 5 gives the observed distinct-block outcome for repeated input and identifies ECB as a separate demonstration.
+10. Modify encrypted data and check whether authentication detects tampering — Covered. Section 5 reports the outcomes for ciphertext and tag changes, associated-data and nonce mismatches, and the toy-cipher comparison. It also mentions the wrong-key unit test.
+11. Demonstrate consequences of nonce reuse — Covered. Section 5 reports the confidentiality result for all three standard configurations and limits the conclusion to the demonstrated outcome.
+12. Examine basic diffusion — Covered. Section 5 describes the bit-flip experiment and gives separate ciphertext-body and tag results.
+13. Examine output characteristics — Covered in the draft. Section 5 reports entropy, chi-square, and repeated-block observations. The extra experiment script and its result files were not supplied.
+14. Evaluate security experiments by whether the intended effects were demonstrated — Covered. Section 5 reports outcomes per experiment. Section 6 limits the conclusions to the cases tested and identifies excluded areas.
+15. Use Python 3, cryptography, NumPy, pandas, Matplotlib, perf_counter_ns(), and pytest — Partial in the draft. Sections 2 and 3 identify Python and the four libraries, and Section 2 names the timing function. Section 5 mentions unit tests without naming pytest. The ZIP includes pytest.ini and a test module.
+16. Use controlled synthetic inputs and no confidential data — Covered, with a wording conflict. Section 2 says all inputs are synthetic random bytes. Section 5 also describes synthetic repeated-block inputs. Section 2 should distinguish random benchmark data from deliberately patterned security-test inputs.
+17. Run locally in a controlled environment — Partial. Sections 2 and 6 identify the current cloud container and describe the benchmark protocol. The planned run on the team's computer is pending.
+18. Record OS, CPU, Python version, cryptographic library version, test sizes, and repetition counts — Covered in Section 2 for the draft environment.
+19. Address the expected findings — Covered for the stated experimental scope. Sections 4–6 discuss hardware-dependent performance, detection of the tested modifications, ECB leakage, the nonce-reuse result, the custom cipher's weaknesses, and the limits of judging security from ciphertext appearance. Section 6 treats the findings as experimental evidence.
+20. Analyze results and create graphs — Partial. Section 4 analyzes performance and points to a combined throughput figure. The referenced combined figure is absent from the supplied ZIP. The ZIP contains sample encryption and decryption plots.
+21. Complete analysis and final report — Partial. The draft has the main analysis and conclusion sections. The local rerun and final revisions are pending. The proposal's weekly timeline is a work plan, so reproducing it in the report is unnecessary. Actual completion dates cannot be inferred from the draft.
+22. Carry over the proposal references and support the background — Partial. The draft lists all five proposal references and adds the cryptography documentation. The Webster and Tavares entry remains a placeholder with no specific point attributed to the paper. Citation accuracy and claim support will be checked in Task 3.
+
+Attachment discrepancy: The supplied archive is Encryption_Project_Prototype(1).zip. Its inventory contains sample_results/, but no extra_experiments.py, analyze_runs.py, or full_results/. This audit does not verify the draft's three-run aggregates or the reported test count. The complete archive is needed to review those components and trace those results.
