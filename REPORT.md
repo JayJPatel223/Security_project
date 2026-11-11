@@ -2,53 +2,43 @@
 
 Jay Patel and Sami Darouiche
 
-Draft prepared from the project prototype. All numbers below were measured by the project code; nothing is estimated. See Section 6 for important caveats, including that the timing data came from a cloud container and should be re-collected on your own computer before submission.
+Working draft. The performance values are from the existing cloud benchmark draft. The repository includes prototype sample results, but the full cloud run files and the results from the planned local rerun are pending. Values carried over from the cloud draft are identified below.
 
 ## 1. Research question and background
 
-Using a strong encryption algorithm does not by itself make a system secure. Implementation mistakes, misuse of modes, nonce reuse, weak keys and poorly designed custom algorithms can all defeat otherwise sound cryptography. This project asks:
+How do AES-128-GCM, AES-256-GCM, and ChaCha20-Poly1305 compare on the same benchmark workload? What do controlled tests of tampering, nonce reuse, and repeated input reveal about these constructions and a deliberately weak toy cipher?
 
-How do AES-128-GCM, AES-256-GCM and ChaCha20-Poly1305 compare in performance and in resistance to common misuse, and what does a deliberately weak custom cipher show about why designing cryptography is hard?
+AES is a block cipher. The suffix in AES-128 and AES-256 denotes the key length. Galois/Counter Mode (GCM) combines counter-mode encryption with authentication. ChaCha20-Poly1305 combines the ChaCha20 stream cipher with the Poly1305 authenticator. Both constructions provide authenticated encryption with associated data (AEAD). The associated data is authenticated and can remain public. The library APIs used here append a 16-byte tag and raise `InvalidTag` when authentication fails. Both constructions require a unique nonce for each encryption under a given key. [1–3, 6]
 
-AES-GCM and ChaCha20-Poly1305 are authenticated encryption with associated data (AEAD) constructions. They encrypt the message and also produce a 16-byte authentication tag that is checked before decrypted data is accepted. Both take a nonce, and the Python cryptography library documentation states: "Reuse of a nonce with a given key compromises the security of any message with that nonce and key pair" (cryptography documentation, AEAD page [6]). The standards for these constructions are NIST SP 800-38D for GCM [2] and RFC 8439 for ChaCha20-Poly1305 [3]; AES itself is specified in FIPS 197 [1] and the ECB mode in NIST SP 800-38A [4].
+## 2. Environment and methods
 
-## 2. Environment and experimental methods
+The cloud benchmark draft records the following environment. The full-run metadata still needs to be checked against the original `environment.json` files.
 
-Environment (recorded automatically in environment.json):
+- OS — Linux-6.18.44-fc-v378-x86_64-with-glibc2.39
+- CPU — Intel(R) Xeon(R) Processor @ 2.10GHz (2 cores available)
+- Python — 3.13.18
+- Libraries — cryptography 50.0.2, NumPy 2.5.4, pandas 3.1.1, Matplotlib 3.11.2
+- Cryptography backend — OpenSSL 4.0.3 29 Sep 2026
 
-- OS: Linux-6.18.44-fc-v378-x86_64-with-glibc2.39
-- CPU: Intel(R) Xeon(R) Processor @ 2.10GHz (2 cores available)
-- Python: 3.13.18
-- cryptography 50.0.2, NumPy 2.5.4, pandas 3.1.1, Matplotlib 3.11.2
-- cryptography backend: OpenSSL 4.0.3 29 Sep 2026
+The benchmarks used synthetic random bytes. The security experiments also used synthetic inputs, including fixed messages and repeated blocks. The benchmark sizes were 1 KiB, 10 KiB, 100 KiB, and 1 MiB. Each configuration used 5 discarded warm-up operations and 30 timed repetitions. The draft reports 3 separate benchmark runs.
 
-Method summary:
+The prototype times each library or toy-cipher call with `time.perf_counter_ns()`. The timed region includes the call and, for AEAD, tag creation or verification. Key creation, input generation, nonce creation, correctness checks, file output, and plotting are outside the timed region. The prototype uses a fresh key for each algorithm, counter-based nonces for benchmark encryption, and a fixed algorithm order. Decryption immediately follows encryption on the resulting ciphertext. This measures a paired, in-process workload. [10]
 
-- All data is synthetic random bytes. No real confidential data was used.
-- Sizes: 1 KiB, 10 KiB, 100 KiB, 1 MiB. Each configuration had 5 discarded warm-up operations and 30 measured repetitions.
-- The full benchmark was run 3 separate times so that run-to-run variation could be reported. Throughput values in this report are the median across the 3 runs of each run's median time.
-- Timing uses time.perf_counter_ns(). Key creation, data generation, nonce creation, correctness checks, file output and plotting are outside the timed region. Tag creation/verification and library-call overhead are inside it.
-- Each algorithm uses a fresh random key, and benchmark nonces are unique counters per key.
-- Throughput = plaintext bytes divided by median time, in MiB/s.
-- Memory was measured separately with tracemalloc, one sample per size and operation.
-- The fixed benchmark order (AES-128-GCM, AES-256-GCM, ChaCha20-Poly1305, Toy) means ordering and system load can affect results.
+Throughput expresses plaintext bytes processed per unit of time in MiB/s. The draft describes the cloud summaries as throughput derived from the median of the per-run median times. The exact aggregation should be checked when the analysis script and raw runs are available. Memory was measured separately with `tracemalloc`, with one sample per algorithm, input size, and operation. [9]
 
-## 3. Cipher implementations and toy-cipher limitations
+## 3. Implementations and toy-cipher limits
 
-The three standard ciphers use the cryptography library's AESGCM and ChaCha20Poly1305 classes with a fixed public associated-data label, so both ciphertext and associated data are authenticated.
+The prototype calls the Python `cryptography` library's `AESGCM` and `ChaCha20Poly1305` classes with a fixed public associated-data label. The tag covers the ciphertext and associated data. [2, 3, 6]
 
-The custom cipher, Toy-XOR-16, XORs each plaintext byte with one of two repeating key bytes. It has these deliberate weaknesses:
+The project's Toy-XOR-16 implementation XORs each plaintext byte with one of two alternating key bytes. Its 16-bit keyspace contains 65,536 possible keys. The implementation ignores the nonce and associated data and has no authentication. Identical blocks at the same key alignment produce identical ciphertext blocks. The first two corresponding plaintext and ciphertext bytes determine the two key bytes under this implementation. These properties follow directly from the [ToyCipher source](crypto_model.py).
 
-- 16-bit keyspace: 65,536 possible keys.
-- No authentication, and it ignores the nonce and associated data.
-- Repeating-key structure, so identical plaintext blocks give identical ciphertext blocks.
-- Known-plaintext weakness: the first two plaintext and ciphertext bytes reveal the whole key.
-
-It is a teaching baseline, not a design to be compared on equal terms with the standard ciphers. It is also written as a pure-Python loop while the standard ciphers run compiled library code, so its speed difference mostly reflects the programming language, not cipher design.
+The toy is an educational baseline. It runs a pure-Python byte loop, while the standard configurations call compiled library code and perform authentication. The timings combine those differences, so they cannot isolate cipher design, implementation language, or authentication overhead.
 
 ## 4. Performance results
 
-Encryption throughput (MiB/s, median of 3 runs):
+The tables retain the values from the cloud draft. The checked-in sample plots and CSVs are from the supplied prototype archive and should be cited as sample outputs. The cloud draft's combined figure, `full_results/combined/combined_throughput.png`, is pending verification. The draft describes it as a median across 3 runs with a band showing the minimum and maximum.
+
+### Encryption throughput (MiB/s, median of 3 runs)
 
 | Algorithm | 1 KiB | 10 KiB | 100 KiB | 1 MiB |
 |---|---|---|---|---|
@@ -57,7 +47,7 @@ Encryption throughput (MiB/s, median of 3 runs):
 | ChaCha20-Poly1305 | 474 | 1,932 | 2,823 | 2,769 |
 | Toy-XOR-16 | 16.7 | 15.3 | 14.4 | 15.0 |
 
-Decryption throughput (MiB/s, median of 3 runs):
+### Decryption throughput (MiB/s, median of 3 runs)
 
 | Algorithm | 1 KiB | 10 KiB | 100 KiB | 1 MiB |
 |---|---|---|---|---|
@@ -66,16 +56,11 @@ Decryption throughput (MiB/s, median of 3 runs):
 | ChaCha20-Poly1305 | 491 | 1,976 | 2,930 | 2,843 |
 | Toy-XOR-16 | 16.7 | 15.5 | 14.5 | 14.9 |
 
-Figure: full_results/combined/combined_throughput.png (median of 3 runs, shaded band showing min to max across runs).
+In the cloud draft, AES-128-GCM encrypted about 3.0 times as fast as ChaCha20-Poly1305 at 1 MiB and about 2.3 times as fast at 1 KiB. AES-256-GCM reached about 92% of AES-128-GCM's encryption throughput at 1 MiB. Throughput increased from 1 KiB to 100 KiB for the standard configurations. The timing includes fixed per-call work, which may contribute to that pattern. Toy-XOR-16 ran at roughly 15 MiB/s and was about 560 times slower than AES-128-GCM at 1 MiB in this implementation.
 
-Observations (measured on this machine only):
+### Run-to-run variation
 
-- At 1 MiB, AES-128-GCM encrypted at about 8,383 MiB/s and ChaCha20-Poly1305 at about 2,769 MiB/s, a ratio of about 3.0 to 1. At 1 KiB the ratio was about 2.3 to 1.
-- AES-256-GCM ran at about 92% of AES-128-GCM's encryption throughput at 1 MiB.
-- Throughput rises with size from 1 KiB to 100 KiB because fixed per-call overhead is spread over more bytes, which matches the README's warning that small-input results include substantial call overhead.
-- The toy cipher ran at roughly 15 MiB/s regardless of size, about 560 times slower than AES-128-GCM at 1 MiB, for the reason given in Section 3.
-
-Run-to-run variation. The largest ratio between the fastest and slowest of the 3 runs for any single configuration was 1.31x, and the median ratio across all configurations was 1.07x. Largest max/min ratio per configuration (encryption and decryption combined):
+For each algorithm and size, the table reports the larger of the encryption and decryption max/min ratios. The largest reported ratio was 1.31x, and the median across configurations was 1.07x. The AES-GCM versus ChaCha20-Poly1305 throughput gap in these cloud results exceeded the reported run-to-run spread. The smaller AES-128-GCM versus AES-256-GCM differences at some sizes deserve a more cautious reading. The draft lists the CPU flags `aes`, `pclmulqdq`, and `vaes`. Backend instruction use and its effect on throughput were unverified.
 
 | Algorithm | 1 KiB | 10 KiB | 100 KiB | 1 MiB |
 |---|---|---|---|---|
@@ -84,9 +69,7 @@ Run-to-run variation. The largest ratio between the fastest and slowest of the 3
 | ChaCha20-Poly1305 | 1.18x | 1.31x | 1.09x | 1.04x |
 | Toy-XOR-16 | 1.18x | 1.08x | 1.29x | 1.04x |
 
-Because differences of this size occur between identical runs, gaps smaller than roughly this variation (for example AES-128-GCM versus AES-256-GCM at some sizes) should not be presented as firm findings. The AES-GCM versus ChaCha20-Poly1305 gap is much larger than the run-to-run spread. The AES result likely depends on hardware AES instructions on the test CPU (the CPU reports the aes, pclmulqdq and vaes flags in /proc/cpuinfo). The ranking may differ on other hardware, as the proposal anticipated.
-
-Memory (Python allocation peaks via tracemalloc; one sample each, exploratory; native library allocations are not captured):
+### Traced Python allocation peaks (bytes)
 
 | Algorithm | Size | Encrypt peak (bytes) | Decrypt peak (bytes) |
 |---|---|---|---|
@@ -99,23 +82,25 @@ Memory (Python allocation peaks via tracemalloc; one sample each, exploratory; n
 | Toy-XOR-16 | 1 KiB | 1,896 | 1,896 |
 | Toy-XOR-16 | 1 MiB | 1,271,387 | 1,271,387 |
 
-For the three standard ciphers the traced Python peak was about the input size plus a small constant (49 bytes at 1 KiB and at 1 MiB for encryption), consistent with the output buffer. The toy cipher's peak was higher at 1 MiB (about 1.2 times the input size); its pure-Python loop likely creates intermediate objects, though the cause was not investigated. These figures do not describe total process memory.
+For the standard configurations, the reported encryption peaks were 49 bytes above the input size at both listed sizes. The toy's reported peak at 1 MiB was about 1.2 times its input size. Inputs and cipher setup were allocated before tracing began. These single-sample measurements describe traced Python allocations during the call. Total process memory and native library allocations were outside the measurement scope. [9]
 
-## 5. Security experiment evidence
+## 5. Security evidence
 
-All results below held in all 3 runs.
+The observations below come from the cloud draft. The [prototype code](crypto_model.py) contains the tampering, nonce-reuse, ECB, toy key-search, and bit-flip demonstrations. The full-run aggregates and extra output-characteristics experiment still need the matching result files.
 
-Tampering. For AES-128-GCM, AES-256-GCM and ChaCha20-Poly1305, decryption raised InvalidTag when a ciphertext bit was flipped, when a tag bit was flipped, when the associated data was wrong, and when the nonce was wrong. The unit tests additionally check that a wrong key is rejected. The toy cipher accepted a flipped ciphertext bit without any error and returned altered plaintext.
+**Tampering.** The draft reports that each AEAD configuration raised `InvalidTag` when a ciphertext bit or tag bit changed, or when the supplied associated data or nonce differed. The prototype [unit tests](tests/test_model.py) also cover the wrong-key case. The toy cipher returned altered plaintext after a ciphertext bit flip. The reported AEAD behavior is consistent with the API's authentication checks. [6]
 
-Nonce reuse. Using a disposable key, one nonce was deliberately reused for two equal-length messages. For all three standard ciphers, XORing the two ciphertext bodies (tags excluded) gave the XOR of the two plaintexts, and knowing the first plaintext recovered the second. This demonstrates loss of confidentiality. It does not show tag forgery or recovery of the encryption key.
+**Nonce reuse.** The draft reports that deliberate reuse of a nonce under a disposable key exposed the XOR of the two plaintexts through the ciphertext bodies in all three AEAD configurations. With one plaintext known, the experiment recovered the other. This is a confidentiality demonstration. Authentication forgery and encryption-key recovery were outside its scope. The same-key, same-nonce confidentiality risk is documented for GCM and ChaCha20-Poly1305. [2, 3]
 
-ECB leakage. Four identical 16-byte blocks encrypted with AES in ECB mode produced one distinct ciphertext block out of four, in every run. ECB is a separate illustration and not one of the benchmarked constructions.
+**ECB leakage.** Encrypting four identical 16-byte plaintext blocks produced one distinct ciphertext block out of four in the reported runs. ECB independently applies the block cipher to each block, so equal plaintext blocks map to equal ciphertext blocks under the same key. The ECB experiment is separate from the performance benchmark. [4]
 
-Brute force. The complete 65,536-key search against the toy cipher, using a known plaintext/ciphertext pair, found exactly one matching key, the correct one, in all 3 runs. Search time was 265 to 338 ms in a pure-Python loop.
+**Toy key search.** The reported exhaustive search checked 65,536 keys against a known plaintext/ciphertext pair. It found one matching key in all 3 runs and took 265 to 338 ms. The time describes this particular Python loop. Section 3 explains the simpler recovery available from the toy's implementation.
 
-Diffusion (100 trials per algorithm per run, 300 total, flipping one bit of a 64-byte plaintext with key and nonce fixed within each pair). The ciphertext body changed by exactly one bit for all four constructions, including the three AEADs, because they are stream-like. A one-bit change in the plaintext therefore does not spread through the body. Authentication tags changed on average by 63.9 bits (AES-128-GCM), 63.7 bits (AES-256-GCM) and 64.0 bits (ChaCha20-Poly1305) out of 128, with an observed range of 48 to 82 bits. Diffusion alone is therefore not a good measure of security for these modes.
+**Plaintext bit flips.** The draft reports 100 trials per algorithm per run, or 300 trials per algorithm across the 3 runs. Each pair used a 64-byte plaintext and held the key and nonce fixed. The prototype changes the lowest bit of the selected byte and rotates the byte position. The ciphertext body changed by exactly one bit in every reported trial. That behavior follows from the way GCM's counter-mode encryption and ChaCha20 XOR a fixed keystream with plaintext in this controlled comparison. The toy also uses XOR. The authentication tags changed by an average of 63.9 bits for AES-128-GCM, 63.7 bits for AES-256-GCM, and 64.0 bits for ChaCha20-Poly1305, out of 128 bits. The reported range was 48 to 82 bits. [2, 3, 6]
 
-Output characteristics (new experiment in extra_experiments.py). A 64 KiB plaintext made of one repeated 16-byte block, which has an entropy of 3.58 bits per byte, was encrypted 30 times per construction:
+Webster and Tavares define the strict avalanche criterion per output bit. For each input-bit position, every output bit should flip with probability one-half over the input pairs. Our tag summary is an average count of changed bits. It does not establish those individual probabilities or assess the AES S-box. [5]
+
+**Ciphertext output characteristics.** The cloud draft describes encrypting a 64 KiB plaintext made from a repeated 16-byte block 30 times per construction. It reports 3.58 bits per byte for the plaintext. The table records the draft's ciphertext summaries.
 
 | Construction | Mean entropy (bits/byte) | Mean chi-square (255 d.f.) | Distinct 16-byte blocks (of 4,096) |
 |---|---|---|---|
@@ -125,30 +110,34 @@ Output characteristics (new experiment in extra_experiments.py). A 64 KiB plaint
 | AES-128-ECB | 3.913 | 1,074,790 | 1 |
 | Toy-XOR-16 | 3.857 | 1,135,957 | 1 |
 
-The AEADs produced near-uniform bytes (a 64 KiB sample cannot reach exactly 8.0 bits, so about 7.997 is the expected ceiling) and no repeated blocks. ECB and the toy cipher kept the plaintext's repeated structure. The chi-square acceptance range of about 197 to 313 is a normal approximation, and the fraction of ChaCha20-Poly1305 samples inside it was 97% (about 1% of samples are expected outside by chance). These statistics only describe appearance. Even where a statistic looks acceptable, it is not evidence of security: the toy cipher falls to a trivial key search whatever its byte statistics look like.
+The AEAD samples had byte frequencies closer to uniform than the ECB and toy samples, and the draft reports no repeated blocks in the AEAD samples. The empirical entropy maximum is 8.0 bits per byte when all byte values occur equally often. The reported 7.997 is an observation, not a ceiling. The draft also reports that 97% of ChaCha20-Poly1305 samples were inside an approximate chi-square interval of 197 to 313. The raw values and analysis script are needed to verify that fraction and the interval's calibration. The chi-square values are descriptive here. Byte frequencies and repeated-block counts describe the samples, and a security claim would require other evidence. [7, 8, 11]
 
-## 6. Limitations, interpretation and conclusions
+## 6. Limitations and conclusions
 
-Limitations:
+The 3 cloud runs cover one reported hardware and software environment. The fixed benchmark order, paired encryption and decryption, and single-sample allocation measurements limit the scope of the performance comparison. Independent verification of the combined tables and figure requires the full benchmark runs and analysis script. The planned local rerun will supply the final performance tables and figure, including elapsed encryption and decryption times from the timing files.
 
-- The timing data came from a 2-core cloud container and not from your own hardware. Rerun the full benchmark on the machine you will describe in the report and replace the tables.
-- Only 3 whole runs were used. Differences smaller than the run-to-run spread above should not be claimed.
-- The benchmark order is fixed, and the toy cipher is pure Python, so its speed is not a fair cipher comparison.
-- Memory results are single-sample Python allocation peaks only.
-- The experiments demonstrate specific properties and misuse cases. They are not security proofs and do not test side channels, key management or protocol design.
-
-Conclusions, each supported by the results above:
-
-1. Under correct use, all three standard AEAD ciphers detected every tampering attempt tested, and produced ciphertext with near-uniform byte statistics even for highly repetitive plaintext.
-2. On this hardware, AES-GCM was substantially faster than ChaCha20-Poly1305, with the size of the gap larger than the run-to-run variation. Hardware dependence means this should be re-measured on the final test machine.
-3. Nonce reuse broke confidentiality for all three standard ciphers, even though everything else was done correctly. Correct use matters as much as algorithm choice.
-4. ECB leaked structure and the toy cipher was broken by an exhaustive search of 65,536 keys, accepted tampering silently, and also leaked structure. Ciphertext that looks irregular is not the same as a secure design.
+The cloud draft reports that AES-GCM had higher throughput than ChaCha20-Poly1305 on that workload. The ranking applies to those measurements. The security experiments illustrate rejection of the tested modifications, confidentiality loss in the tested nonce-reuse cases, and the persistence of repeated structure under ECB and the toy cipher. The toy also accepted a ciphertext change and yielded to the exhaustive search. The experiments do not establish general security or evaluate side channels, key management, or protocol design. [2–4, 6, 11]
 
 ## References
 
-[1] National Institute of Standards and Technology. Advanced Encryption Standard (AES), FIPS PUB 197-upd1, 2023. https://doi.org/10.6028/NIST.FIPS.197-upd1
-[2] Dworkin, M. Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC, NIST SP 800-38D, 2007. https://doi.org/10.6028/NIST.SP.800-38D
-[3] Nir, Y., and Langley, A. ChaCha20 and Poly1305 for IETF Protocols, RFC 8439, 2018. https://www.rfc-editor.org/rfc/rfc8439
-[4] Dworkin, M. Recommendation for Block Cipher Modes of Operation: Methods and Techniques, NIST SP 800-38A, 2001. https://doi.org/10.6028/NIST.SP.800-38A
-[5] Webster, A. F., and Tavares, S. E. On the Design of S-Boxes, Advances in Cryptology, CRYPTO '85, 1985. (Cited in the proposal; add a specific point from it if you discuss the toy cipher's design.)
-[6] Python cryptography documentation, AEAD primitives (AESGCM and ChaCha20Poly1305; page consulted for version 46.0.4, while this project ran version 50.0.2). https://cryptography.io/en/stable/hazmat/primitives/aead/
+[1] NIST. Advanced Encryption Standard (AES), FIPS 197-upd1, 2023. https://doi.org/10.6028/NIST.FIPS.197-upd1
+
+[2] M. Dworkin. Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC, NIST SP 800-38D, 2007, Sections 6.5, 7–8 and Appendix A. https://doi.org/10.6028/NIST.SP.800-38D
+
+[3] Y. Nir and A. Langley. ChaCha20 and Poly1305 for IETF Protocols, RFC 8439, 2018, Sections 2.4, 2.8 and 4. https://www.rfc-editor.org/rfc/rfc8439
+
+[4] M. Dworkin. Recommendation for Block Cipher Modes of Operation: Methods and Techniques, NIST SP 800-38A, 2001, Section 6.1. https://doi.org/10.6028/NIST.SP.800-38A
+
+[5] A. F. Webster and S. E. Tavares. On the Design of S-Boxes. In H. C. Williams (ed.), Advances in Cryptology — CRYPTO '85 Proceedings, LNCS 218, pp. 523–534. Presented at CRYPTO '85, proceedings published in 1986. https://doi.org/10.1007/3-540-39799-X_41
+
+[6] Python Cryptographic Authority. Authenticated encryption, `cryptography` documentation, AESGCM and ChaCha20Poly1305. https://cryptography.io/en/stable/hazmat/primitives/aead/
+
+[7] C. E. Shannon. A Mathematical Theory of Communication. Bell System Technical Journal 27, pp. 379–423, 1948, Section 6. https://doi.org/10.1002/j.1538-7305.1948.tb01338.x
+
+[8] NIST/SEMATECH. e-Handbook of Statistical Methods, Chi-Square Goodness-of-Fit Test, Section 1.3.5.15. https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm
+
+[9] Python Software Foundation. `tracemalloc` documentation, `get_traced_memory()`. https://docs.python.org/3/library/tracemalloc.html
+
+[10] Python Software Foundation. `time` documentation, `perf_counter_ns()`. https://docs.python.org/3/library/time.html
+
+[11] NIST. A Statistical Test Suite for Random and Pseudorandom Number Generators for Cryptographic Applications, SP 800-22 Rev. 1a, 2010. https://doi.org/10.6028/NIST.SP.800-22r1a
